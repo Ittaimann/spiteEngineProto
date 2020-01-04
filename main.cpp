@@ -7,10 +7,19 @@ Separate images and sampler descriptors
 Pipeline cache
 Multi-threaded command buffer generation
 Multiple subpasses
-Compute shaders*/
+Compute shaders
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+Seperate GLFW into its own space.
+
+
+-------NOTES--------
+
+seperate vulkan init into a seperate class entirely.
+maybe have that be the Vulkan driver class? deal with window init in there. as well.
+
+*/
+#include "Window.h"
+
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
@@ -151,17 +160,21 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 proj;
 };
 
+
+// remove all of this and put it into some kind of vulkan class.
+// get the vulkan driver going pls
 class HelloTriangleApplication {
 public:
+
+	HelloTriangleApplication(Window& window) :Renderwindow(&window) {};
 	void run() {
-		initWindow();
 		initVulkan();
 		mainLoop();
 		cleanup();
 	}
 
 private:
-	GLFWwindow* window;
+	Window* Renderwindow;
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
@@ -229,20 +242,10 @@ private:
 
 
 	void initWindow() {
-		glfwInit();
 
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-		glfwSetWindowUserPointer(window, this);
-		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 	}
 
-	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-		auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
-		app->framebufferResized = true	;
-	}
+	
 
 	void initVulkan() {
 		createInstance();
@@ -273,8 +276,8 @@ private:
 	}
 
 	void mainLoop() {
-		while (!glfwWindowShouldClose(window)) {
-			glfwPollEvents();
+		while (Renderwindow->getWindowClosed()) {
+			Renderwindow->PollEvents();
 			drawFrame();
 		}
 
@@ -313,10 +316,8 @@ private:
 
 		vkDestroySurfaceKHR(instance, surface, nullptr);
 		vkDestroyInstance(instance, nullptr);
-
-		glfwDestroyWindow(window);
-
-		glfwTerminate();
+		
+		Renderwindow->destroyWindow();
 	}
 
 	void createInstance() {
@@ -379,9 +380,8 @@ private:
 	}
 
 	void createSurface() {
-		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create window surface!");
-		}
+		//TODO move this to the window creation. maybe consider a large scale vulkan init.
+		Renderwindow->CreateSurface(instance,surface);
 	}
 
 	void pickPhysicalDevice() {
@@ -545,8 +545,8 @@ private:
 		int width = 0;
 		int height = 0;
 		while (width == 0 || height == 0) {
-			glfwGetFramebufferSize(window, &width, &height);
-			glfwWaitEvents();
+			Renderwindow->getFrameBufferSize(&width, &height);
+			Renderwindow->waitEvents();
 		}
 		
 		vkDeviceWaitIdle(device);
@@ -1578,7 +1578,7 @@ private:
 		}
 		else {
 			int width, height;
-			glfwGetFramebufferSize(window, &width, &height);
+			Renderwindow->getFrameBufferSize(&width, &height);
 
 			VkExtent2D actualExtent = {
 				static_cast<uint32_t>(width),
@@ -1683,6 +1683,7 @@ private:
 	}
 
 	std::vector<const char*> getRequiredExtensions() {
+		//move this into window handling
 		uint32_t glfwExtensionCount = 0;
 		const char** glfwExtensions;
 		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -1776,8 +1777,9 @@ private:
 };
 
 int main() {
-	HelloTriangleApplication app;
-
+	Window hello(600, 300);
+	HelloTriangleApplication app(hello);
+	
 	try {
 		app.run();
 	}
