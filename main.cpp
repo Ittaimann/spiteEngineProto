@@ -3,19 +3,31 @@ TODO:
 Push constants
 Instanced rendering
 Dynamic uniforms
-Separate images and sampler descriptors
 Pipeline cache
 Multi-threaded command buffer generation
 Multiple subpasses
 Compute shaders
 
-Seperate GLFW into its own space.
+
+
+Glfw should be in its own abstraction maybe (called window)
+this window gets passed to vulkan and also has our input so we need to initialize vulkan with it 
+though im pretty sure this is abstracting ahead of time and might be unnecessay.
+there is only one window... could I make a dirty window singleton? god fuck that but eh.
 
 
 -------NOTES--------
 
 seperate vulkan init into a seperate class entirely.
 maybe have that be the Vulkan driver class? deal with window init in there. as well.
+Descriptor set system needs to be done as soon as possible. Might need 
+to either set it and expand as needed or find a way to get meta data 
+for the shader. Maybe materials have a list of descriptors or something?
+
+set 1 uniform buffers like mvp matrix (maybe push constants?)
+set 2 images and samplers
+set 3 location based images (Light maps and reflection map)
+set 4 uniform buffer, like lighting, color, shader variables.
 
 */
 #include "Window.h"
@@ -240,13 +252,6 @@ private:
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 
-
-	void initWindow() {
-
-	}
-
-	
-
 	void initVulkan() {
 		createInstance();
 		setupDebugMessenger();
@@ -336,7 +341,7 @@ private:
 		VkInstanceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
-		
+
 		auto extensions = getRequiredExtensions();
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 		createInfo.ppEnabledExtensionNames = extensions.data();
@@ -347,7 +352,7 @@ private:
 			createInfo.ppEnabledLayerNames = validationLayers.data();
 
 			populateDebugMessengerCreateInfo(debugCreateInfo);
-			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)& debugCreateInfo;
+			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
 		}
 		else {
 			createInfo.enabledLayerCount = 0;
@@ -380,7 +385,6 @@ private:
 	}
 
 	void createSurface() {
-		//TODO move this to the window creation. maybe consider a large scale vulkan init.
 		Renderwindow->CreateSurface(instance,surface);
 	}
 
@@ -1316,9 +1320,9 @@ private:
 	void createDescriptorPool() {
 		std::array<VkDescriptorPoolSize,2> poolSize = {};
 		poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSize[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+		poolSize[0].descriptorCount = 16;
 		poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSize[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+		poolSize[1].descriptorCount =16;
 
 		VkDescriptorPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
